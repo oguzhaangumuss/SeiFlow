@@ -1,8 +1,12 @@
 // Sei MCP Service Integration
+import { SeiMCPClient, createSeiMCPClient } from './sei-mcp-client'
+
 export interface SeiMCPConfig {
   privateKey?: string
   network: 'sei' | 'sei-testnet' | 'sei-devnet'
   rpcUrl?: string
+  useMCPServer?: boolean
+  mcpServerUrl?: string
 }
 
 export interface SeiChainInfo {
@@ -42,30 +46,37 @@ export interface TransactionResult {
 
 export class SeiMCPService {
   private config: SeiMCPConfig
+  private mcpClient?: SeiMCPClient
 
   constructor(config: SeiMCPConfig) {
     this.config = config
+    
+    // Initialize MCP client if requested
+    if (config.useMCPServer) {
+      this.mcpClient = createSeiMCPClient({
+        serverUrl: config.mcpServerUrl || 'http://localhost:3001',
+        network: config.network,
+        privateKey: config.privateKey
+      })
+    }
   }
 
   // Chain Information
   async getChainInfo(): Promise<SeiChainInfo> {
     try {
-      // This would normally call the MCP server
-      // For now, return mock data for the selected network
-      const chainConfigs = {
-        'sei': { chainId: 1329, rpcUrl: 'https://evm-rpc.sei-apis.com' },
-        'sei-testnet': { chainId: 1328, rpcUrl: 'https://evm-rpc-testnet.sei-apis.com' },
-        'sei-devnet': { chainId: 713715, rpcUrl: 'https://evm-rpc-arctic-1.sei-apis.com' }
+      if (this.mcpClient) {
+        // Use real MCP server
+        const info = await this.mcpClient.getChainInfo()
+        return {
+          chainId: info.chainId,
+          blockNumber: info.blockNumber || 0,
+          rpcUrl: info.rpcUrl,
+          network: this.config.network
+        }
       }
 
-      const chainConfig = chainConfigs[this.config.network]
-      
-      return {
-        chainId: chainConfig.chainId,
-        blockNumber: 0, // Would be fetched from MCP
-        rpcUrl: chainConfig.rpcUrl,
-        network: this.config.network
-      }
+      // No fallback - Sei MCP Server required
+      throw new Error('Sei MCP Server connection required. Please start the MCP server with: npm run sei-mcp')
     } catch (error) {
       throw new Error(`Failed to get chain info: ${error}`)
     }
@@ -74,8 +85,14 @@ export class SeiMCPService {
   // Native Token Balance
   async getBalance(address: string): Promise<string> {
     try {
-      // Mock implementation - would use MCP tool "get-balance"
-      return "1000000000000000000" // 1 SEI in wei
+      if (this.mcpClient) {
+        // Use real MCP server
+        const balance = await this.mcpClient.getBalance(address)
+        return balance.balance
+      }
+
+      // No fallback - Sei MCP Server required
+      throw new Error('Sei MCP Server connection required for balance queries')
     } catch (error) {
       throw new Error(`Failed to get balance: ${error}`)
     }
@@ -84,14 +101,8 @@ export class SeiMCPService {
   // Token Information
   async getTokenInfo(tokenAddress: string): Promise<TokenInfo> {
     try {
-      // Mock implementation - would use MCP tool "get-token-info"
-      return {
-        address: tokenAddress,
-        name: "Mock Token",
-        symbol: "MOCK",
-        decimals: 18,
-        totalSupply: "1000000000000000000000000"
-      }
+      // No fallback - Sei MCP Server required
+      throw new Error('Sei MCP Server connection required for token info queries')
     } catch (error) {
       throw new Error(`Failed to get token info: ${error}`)
     }
@@ -100,16 +111,8 @@ export class SeiMCPService {
   // Token Balance
   async getTokenBalance(tokenAddress: string, ownerAddress: string): Promise<TokenBalance> {
     try {
-      // Mock implementation - would use MCP tool "get-token-balance"
-      return {
-        tokenAddress,
-        owner: ownerAddress,
-        network: this.config.network,
-        raw: "1000000000000000000000",
-        formatted: "1000",
-        symbol: "MOCK",
-        decimals: 18
-      }
+      // No fallback - Sei MCP Server required
+      throw new Error('Sei MCP Server connection required for token balance queries')
     } catch (error) {
       throw new Error(`Failed to get token balance: ${error}`)
     }
@@ -122,16 +125,22 @@ export class SeiMCPService {
         throw new Error('Private key required for transfers')
       }
 
-      // Mock implementation - would use MCP tool "transfer-sei"
-      return {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        from: "0x0000000000000000000000000000000000000000",
-        to,
-        value: amount,
-        gasUsed: "21000",
-        status: 'success',
-        blockNumber: 1234567
+      if (this.mcpClient) {
+        // Use real MCP server
+        const result = await this.mcpClient.transferSei(to, amount)
+        return {
+          hash: result.hash,
+          from: result.from,
+          to: result.to,
+          value: result.value,
+          gasUsed: result.gasUsed,
+          status: result.status,
+          blockNumber: result.blockNumber || 0
+        }
       }
+
+      // No fallback - Sei MCP Server required for transactions
+      throw new Error('Sei MCP Server connection required for SEI transfers')
     } catch (error) {
       throw new Error(`Failed to transfer SEI: ${error}`)
     }
@@ -144,16 +153,8 @@ export class SeiMCPService {
         throw new Error('Private key required for transfers')
       }
 
-      // Mock implementation - would use MCP tool "transfer-token"
-      return {
-        hash: `0x${Math.random().toString(16).substring(2, 66)}`,
-        from: "0x0000000000000000000000000000000000000000",
-        to: tokenAddress, // Contract address for token transfer
-        value: "0", // No ETH value for token transfer
-        gasUsed: "65000",
-        status: 'success',
-        blockNumber: 1234567
-      }
+      // No fallback - Sei MCP Server required for transactions
+      throw new Error('Sei MCP Server connection required for token transfers')
     } catch (error) {
       throw new Error(`Failed to transfer token: ${error}`)
     }
@@ -162,16 +163,8 @@ export class SeiMCPService {
   // Get Transaction Details
   async getTransaction(txHash: string): Promise<TransactionResult> {
     try {
-      // Mock implementation - would use MCP tool "get-transaction"
-      return {
-        hash: txHash,
-        from: "0x0000000000000000000000000000000000000000",
-        to: "0x1111111111111111111111111111111111111111",
-        value: "1000000000000000000",
-        gasUsed: "21000",
-        status: 'success',
-        blockNumber: 1234567
-      }
+      // No fallback - Sei MCP Server required
+      throw new Error('Sei MCP Server connection required for transaction queries')
     } catch (error) {
       throw new Error(`Failed to get transaction: ${error}`)
     }
@@ -206,6 +199,8 @@ export function createSeiMCPService(config: Partial<SeiMCPConfig> = {}): SeiMCPS
   const defaultConfig: SeiMCPConfig = {
     network: 'sei-testnet',
     privateKey: process.env.SEI_PRIVATE_KEY,
+    useMCPServer: true, // Enable real MCP server by default
+    mcpServerUrl: process.env.NEXT_PUBLIC_SEI_MCP_SERVER_URL || 'http://localhost:3001',
     ...config
   }
   
