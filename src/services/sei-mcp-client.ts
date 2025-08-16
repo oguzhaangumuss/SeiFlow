@@ -60,40 +60,9 @@ export class SeiMCPClient {
   }
 
   private async makeRequest(method: string, params?: any): Promise<any> {
-    const request: MCPRequest = {
-      jsonrpc: '2.0',
-      id: this.requestId++,
-      method,
-      params: params || {}
-    }
-
-    try {
-      const response = await fetch(`${this.config.serverUrl}/mcp`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(this.config.privateKey && {
-            'Authorization': `Bearer ${this.config.privateKey}`
-          })
-        },
-        body: JSON.stringify(request)
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const data: MCPResponse = await response.json()
-
-      if (data.error) {
-        throw new Error(`MCP Error ${data.error.code}: ${data.error.message}`)
-      }
-
-      return data.result
-    } catch (error) {
-      console.error(`Sei MCP request failed:`, error)
-      throw error
-    }
+    // For now, let's use a simple approach and bypass MCP protocol
+    // Direct integration with Sei MCP Kit functionality
+    throw new Error(`MCP SSE protocol not yet implemented. Method: ${method}, Params: ${JSON.stringify(params)}`)
   }
 
   // Get chain information

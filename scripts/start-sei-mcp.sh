@@ -28,7 +28,7 @@ echo "📝 Network: sei-testnet"
 echo "🔗 Endpoint: http://localhost:3001/mcp"
 echo ""
 
-# Run the Sei MCP Server with HTTP mode
-npx -y @sei-js/mcp-server --http --port 3001 --host 0.0.0.0
+# Run the Sei MCP Server with HTTP SSE transport
+SERVER_TRANSPORT=http-sse SERVER_PORT=3001 SERVER_HOST=localhost npx -y @sei-js/mcp-server
 
 echo "🛑 Sei MCP Server stopped"
